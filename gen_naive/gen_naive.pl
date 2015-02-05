@@ -166,7 +166,7 @@ while(my $curLine = <ORIGFILE>)
 	elsif($curLine =~ /int\s+main/  || $curLine =~ /void\s+main/)
 	{
 		$main = 1;
-		push(@setupMainStr,"#define RUNACC\n");
+		push(@setupMainStr,"#define RUN_ACC\n");
 	}
 
 
@@ -285,10 +285,11 @@ unless($unrunXSdk)
 	generateXsdkTclSetup($functionName,"$dirName\/vivado_top");
 	generateXsdkTclBuild($functionName,"$dirName\/vivado_top");	
 	
-	system("xsdk -batch -source $xsdkTclFile");
+	#system("xsdk -batch -source $xsdkTclFile");
 	generateSoftware($functionName,"$dirName\/vivado_top");
+	#got to copy over the pcore headers and stuff
 	
-	system("xsdk -batch -source $xsdkTclBuildFile");
+	#system("xsdk -batch -source $xsdkTclBuildFile");
 	
 }
 
@@ -303,13 +304,13 @@ sub generateSoftware
 	my $projectDirName = shift(@_);
 	my $projectName = "${funcName}_top";
 
-	my $srcToModify = "$projectDirName\/$projectName\/$projectName.sdk\/SDK\/SDK_Export\/naive_${funcName}_run\/src\/helloworld.c";
+	my $srcToModify = "helloworld.c";#"$projectDirName\/$projectName\/$projectName.sdk\/SDK\/SDK_Export\/naive_${funcName}_run\/src\/helloworld.c";
 	
 	open (CSRC, ">$srcToModify") or die("cannot open the c file\n");
 	
 	print CSRC "#include <stdio.h>\n#include \"platform.h\"\n#include \"xscutimer.h\"\n#include \"xparameters.h\"\n#include \"xil_printf.h\"\n#include \"xscugic.h\"\n#include \"xdmaps.h\"\n";
 	print CSRC "#include \"x${funcName}.h\"\n";
-	print CSRC "#include \"x${funcName}_cb.h\"\n";
+	#print CSRC "#include \"x${funcName}_cb.h\"\n";
 	print CSRC "#define TIMER_LOAD_VALUE 0xFFFFFFFF\n#define TIMER_DEVICE_ID	XPAR_SCUTIMER_DEVICE_ID\n";
 	# maybe extra defs and stuff
 	print CSRC "$extraStr\n";
@@ -333,7 +334,7 @@ sub generateSoftware
 	print CSRC "	int m =0;\n";
 	print CSRC "	while(Data != 0 && m <100)\n";
 	print CSRC "	{\n";
-	print CSRC "		Data = XKnapsack_naive_GetSettingsVld(&${funcName}_dev);\n";
+	print CSRC "		Data = X${flUpped}_GetSettingsVld(&${funcName}_dev);\n";
 	print CSRC "		m++;\n";
 	print CSRC "	}\n";
 	print CSRC "	return Data;\n";
@@ -346,7 +347,7 @@ sub generateSoftware
 		print CSRC $_;
 	}
 	# now we need to generate the setup hw thing
-	print CSRC "\nvoid runHw${funcName}(";
+	print CSRC "\nint runHw${funcName}(";
 	my $s = 1;
 	foreach(@swArgs)
 	{
@@ -372,7 +373,7 @@ sub generateSoftware
 	if($numEle == 0)
 	{
 		print CSRC "XScuTimer_RestartTimer(TimerInstancePtr);\n";
-		print CSRC "$timerStr\n";	
+		print CSRC "$-type app naive_${funcName}_runtimerStr\n";	
 
 	}
 	else
@@ -496,6 +497,7 @@ sub generateXsdkTclSetup
 	print XSDKTCLFILE "create_project -type hw -name hw_platform -hwspec $projectDirName\/$projectName\/$projectName.sdk\/SDK\/SDK_Export\/hw\/design_1.xml\n";
 	print XSDKTCLFILE "create_project -type bsp -name bsp_0 -hwproject hw_platform -proc ps7_cortexa9_0 -os standalone\n";
 	print XSDKTCLFILE "create_project -type app -name naive_${funcName}_run -hwproject hw_platform -proc ps7_cortexa9_0 -os standalone -lang C -app {Hello World} -bsp bsp_0\n";
+	print XSDKTCLFILE "exit\n";
 	
 }
 
@@ -506,8 +508,7 @@ sub generateXsdkTclBuild
 	my $projectName = "${funcName}_top";
 
 	print XSDKTCLBUILDFILE "set_workspace $projectDirName\/$projectName\/$projectName.sdk\/SDK\/SDK_Export\n";
-	print XSDKTCLBUILDFILE "build -type bsp bsp_0\n";
-	print XSDKTCLBUILDFILE "build -type app naive_${funcName}_run\n";
+	print XSDKTCLBUILDFILE "build\n";
 
 }
 
@@ -527,7 +528,7 @@ sub generateVivadoTop
 	#import the ip
 	print VIVADOTCLFILE "set_property ip_repo_paths $hlsTop\/$funcName [current_fileset]\n";
 	print VIVADOTCLFILE "update_ip_catalog\n";
-	printVivadoStartEndGroup("create_bd_cell -type ip -vlnv xilinx.com:ip:processing_system7:5.5 processing_system7_0");
+	printVivadoStartEndGroup("create_bd_cell -type ip -vlnv xilinx.com:ip:processing_system7:5.3 processing_system7_0");
 	print VIVADOTCLFILE "apply_bd_automation -rule xilinx.com:bd_rule:processing_system7 -config {make_external \"FIXED_IO, DDR\" apply_board_preset \"1\" }  [get_bd_cells processing_system7_0]\n";
 	
 	printVivadoStartEndGroup("create_bd_cell -type ip -vlnv xilinx.com:hls:$funcName:1.0 ${funcName}_0");
