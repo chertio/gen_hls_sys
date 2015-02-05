@@ -373,7 +373,7 @@ sub generateSoftware
 	if($numEle == 0)
 	{
 		print CSRC "XScuTimer_RestartTimer(TimerInstancePtr);\n";
-		print CSRC "$-type app naive_${funcName}_runtimerStr\n";	
+		print CSRC "$timerStr\n";	
 
 	}
 	else
